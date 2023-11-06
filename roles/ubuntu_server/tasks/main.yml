@@ -66,9 +66,9 @@
     enabled: yes
 
 - name: install InfluxDB package (Ubuntu)
-   apt:
-     name: influxdb
-     state: present
+  apt:
+    name: influxdb
+    state: present
 
 - name: Install required packages for Grafana (Ubuntu)
   apt:
