@@ -1,0 +1,165 @@
+---
+- name: adding elasticsearch apt key
+  apt_key:
+    url: "https://packages.elastic.co/GPG-KEY-elasticsearch"
+    state: present
+
+- name: installing apt repository
+  apt:
+    name: apt-transport-https
+    state: present
+
+- name: naming elasticsearch repository
+  apt_repository:
+    repo: deb https://artifacts.elastic.co/packages/7.x/apt stable main
+    state: present
+
+- name: installing elasticsearch
+  apt:
+    name: elasticsearch
+    update_cache: yes
+
+- name: updating the configuration file to allow outside access
+  lineinfile:
+    destfile: /etc/elasticsearch/elasticsearch.yml
+    regexp: 'network.host:'
+    line: 'network.host: 0.0.0.0'
+
+- name: updating port in configuration file
+  lineinfile:
+    destfile: /etc/elasticsearch/elasticsearch.yml
+    regexp: 'http.port:'
+    line: 'http.port: 9200'
+
+- name: updating the config file to allow outside access
+  lineinfile:
+    destfile: /etc/elasticsearch/elasticsearch.yml
+    regexp: 'cluster.initial_master_nodes:'
+    line: 'cluster.initial_master_nodes: ["{{ ansible_default_ipv4.address }}"]'
+
+- name: verifying the elasticsearch
+  service:
+    name: elasticsearch
+    state: restarted
+    enabled: true
+
+- name: Install Kibana
+  apt:
+    name: kibana
+    state: present
+
+- name: Start Kibana service
+  service:
+    name: kibana
+    state: started
+    enabled: yes
+
+- name: Install Logstash on Ubuntu
+  apt:
+    name: logstash
+    state: present
+
+- name: Start Logstash Service
+  service:
+    name: logstash
+    state: started
+    enabled: yes
+
+- name: install InfluxDB package (Ubuntu)
+   apt:
+     name: influxdb
+     state: present
+
+- name: Install required packages for Grafana (Ubuntu)
+  apt:
+    name: apt-transport-https
+    state: present
+
+- name: Install the Grafana GPG key (Ubuntu)
+  apt_key:
+    url: https://packages.grafana.com/gpg.key
+  when: not (ansible_facts['apt_keys']|default([]) | select('match', 'grafana') | list)
+
+- name: Add Grafana APT repository (Ubuntu)
+  apt_repository:
+    repo: deb https://packages.grafana.com/oss/deb stable main
+    state: present
+  when: not (ansible_facts['apt_sources']|default([]) | select('match', 'grafana') | list)
+
+- name: Install Grafana (Ubuntu)
+  apt:
+    name: grafana
+    state: present
+
+- name: Update Grafana configuration to allow network host
+  lineinfile:
+    dest: /etc/grafana/grafana.ini
+    regexp: '^;http_addr ='
+    line: 'http_addr = 0.0.0.0'
+
+- name: Update Grafana configuration to change the default port to 3000
+  lineinfile:
+    dest: /etc/grafana/grafana.ini
+    regexp: '^;http_port ='
+    line: 'http_port = 3000'
+
+- name: install necessary packages for Prometheus (Ubuntu)
+  apt:
+    name: prometheus
+    state: present
+
+- name: Copying the Prometheus Configuration (Ubuntu)
+  copy:
+    src: prometheus.service
+    dest: /etc/systemd/system/prometheus.service
+    owner: root
+    group: root
+    mode: 777
+
+- name: enable / start InfluxDB (Ubuntu)
+  service:
+    name: influxdb
+    state: started
+    enabled: true
+
+- name: Start and enable Grafana service (Ubuntu)
+  service:
+    name: grafana-server
+    state: started
+    enabled: true
+
+- name: enable / start prometheus (Ubuntu)
+  service:
+    name: prometheus
+    state: started
+    enabled: yes
+
+- name: install mariadb package (Ubuntu)
+  tags: db,mariadb,ubuntu
+  apt:
+    name: mariadb-server
+    state: latest
+
+- name: "Mariadb- Restarting/Enablimg"
+  service:
+    name: mariadb
+    state: restarted
+    enabled: true
+
+- name: install apache and php for Ubuntu servers
+  tags: apache,apache2,ubuntu
+  apt:
+    name:
+      - apache2
+      - libapache2-mod-php
+    state: latest
+
+- name: copy default html file for site
+  tags: apache, apache2, httpd
+  copy:
+    src: default_site.html
+    dest: /var/www/html/index.html
+    owner: root
+    group: root
+    mode: 0644
+

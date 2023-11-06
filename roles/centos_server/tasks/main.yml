@@ -1,0 +1,221 @@
+---
+
+- name: downloading elasticsearch
+  get_url:
+    url: https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.9.2-x86_64.rpm
+    dest: /tmp/elasticsearch-7.9.2-x86_64.rpm
+
+- name: installing elasticsearch
+  yum:
+    name: /tmp/elasticsearch-7.9.2-x86_64.rpm
+    state: present
+
+- name: starting elasticsearch
+  service:
+    name: elasticsearch
+    state: started
+
+- name: Install Kibana
+  apt:
+    name: kibana
+    state: present
+
+- name: Start Kibana service
+  service:
+    name: kibana
+    state: started
+    enabled: yes
+
+- name: Install Logstash 
+  apt:
+    name: logstash
+    state: present
+
+- name: Start Logstash Service
+  service:
+    name: logstash
+    state: started
+    enabled: yes
+
+- name: installation of nagios dependencies and libraries
+  tags:
+    - dependencies
+    - libraries
+  yum:
+    name:
+      - gcc
+      - glibc
+      - glibc-common
+      - perl
+      - httpd
+      - php
+      - wget
+      - gd
+      - gd-devel
+      - openssl-devel
+      - gcc
+      - glibc
+      - glibc-common
+      - make
+      - gettext
+      - automake
+      - autoconf
+      - wget
+      - openssl-devel
+      - net-snmp
+      - net-snmp-utils
+      - python
+      - python2-pip
+      - python3-pip
+    state: latest
+
+- name: install passlib package
+  pip:
+    name: passlib
+
+- name: assign nagios path directory
+  file:
+    path: ~/nagios
+    state: directory
+
+- name: download nagios
+  unarchive:
+    src: https://github.com/NagiosEnterprises/nagioscore/archive/nagios-4.4.6.tar.gz
+    dest: ~/nagios
+    remote_src: yes
+    mode: 0777
+    owner: root
+    group: root
+
+- name: add users to nagios
+  community.general.htpasswd:
+    path: /usr/local/nagios/etc/htpasswd.users
+    name: rose
+    password: rose
+
+- name: start and enable nagios
+  service:
+    name: nagios
+    state: restarted
+    enabled: true
+
+- name: start and enable httpd
+  service:
+    name: httpd
+    state: restarted
+    enabled: true
+
+- name: install InfluxDB package (CentOS)
+   dnf:
+     name: influxdb
+     state: present
+
+- name: Install required packages for Grafana (CentOS)
+  yum:
+    name: epel-release
+    state: present
+
+- name: Add Grafana YUM repository (CentOS)
+  yum_repository:
+    name: grafana
+    description: Grafana repository
+    baseurl: https://packages.grafana.com/oss/rpm
+    gpgcheck: yes
+    gpgkey: https://packages.grafana.com/gpg.key
+    enabled: yes
+  when: not (ansible_facts['yum_repos']|default([]) | select('match', 'grafana') | list)
+
+- name: Install Grafana (CentOS)
+  package:
+    name: grafana
+    state: present
+
+- name: Update Grafana configuration to allow network host
+  lineinfile:
+    dest: /etc/grafana/grafana.ini
+    regexp: '^;http_addr ='
+    line: 'http_addr = 0.0.0.0'
+
+- name: Update Grafana configuration to change the default port to 3000
+  lineinfile:
+    dest: /etc/grafana/grafana.ini
+    regexp: '^;http_port ='
+    line: 'http_port = 3000'
+
+- name: prothemetus download directory (CentOS)
+  file:
+    path: ~/prometheus
+    state: directory
+
+- name: Downloading and extracting Prometheus (CentOS)
+  unarchive:
+    src: https://github.com/prometheus/prometheus/releases/download/v2.8.1/prometheus-2.8.1.linux-amd64.tar.gz
+    dest: ~/prometheus
+    remote_src: yes
+    mode: 0777
+    owner: root
+    group: root
+
+- name: Stop the Prometheus service (CentOS)
+  service:
+    name: prometheus
+    state: stopped
+  async: 300
+  poll: 0
+  ignore_errors: yes
+
+- name: Adding the Prometheus executables to a PATH
+  tags: executables
+  shell: |
+    cd ~/prometheus/prometheus*
+    cp -r . /usr/local/bin/prometheus
+
+- name: Copying the Prometheus Configuration (CentOS)
+  copy:
+    src: prometheus.service
+    dest: /etc/systemd/system/prometheus.service
+    owner: root
+    group: root
+    mode: 777
+
+- name: start InfluxDB (CentOS)
+  service:
+    name: influxdb
+    state: started
+    enabled: true
+
+- name: Start and enable Grafana service (CentOS)
+  service:
+    name: grafana-server
+    state: started
+    enabled: yes
+
+- name: enable / start Prometheus (CentOS)
+  service:
+    name: prometheus
+    state: started
+    enabled: yes
+
+- name: install apache and php for CentOS servers
+  tags: apache,centos,httpd
+  dnf:
+    name:
+      - httpd
+      - php
+    state: latest
+
+- name: start httpd (CentOS)
+  tags: apache, centos, httpd
+  service:
+    name: httpd
+    state: started
+    enabled: true
+
+- name: copy default html file for site
+  tags: apache, apache2, httpd 
+  copy: 
+    src: default_site.html
+    dest: /var/www/html/index.html
+    owner: root
+    group: root
+    mode: 0644
