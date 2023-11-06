@@ -106,9 +106,9 @@
     enabled: true
 
 - name: install InfluxDB package (CentOS)
-   dnf:
-     name: influxdb
-     state: present
+  dnf:
+    name: influxdb
+    state: present
 
 - name: Install required packages for Grafana (CentOS)
   yum:
